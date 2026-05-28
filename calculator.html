@@ -26,14 +26,20 @@
     
     <label>Select Tank</label>
     <select id="tankSelect">
+        <option value="22kl" selected>22 KL Tank</option>
         <option value="16kl">16 KL Tank</option>
-        <option value="22kl">22 KL Tank</option>
     </select>
 
-    <label>Select Product</label>
+    <label>Current Temp (°C)</label>
+    <input type="number" id="tempInput" placeholder="e.g. 25" step="0.1">
+
+    <label>Observed Density (kg/m³)</label>
+    <input type="number" id="densityInput" placeholder="e.g. 830" step="0.1">
+
+    <label>Detected Product</label>
     <select id="productSelect">
         <option value="diesel">Diesel (HSD)</option>
-        <option value="petrol">Petrol (MS)</option>
+        <option value="petrol20">Petrol (20% Ethanol)</option>
     </select>
 
     <label>Total Dip Reading (mm)</label>
@@ -41,12 +47,6 @@
 
     <label>Water Dip Reading (mm) - Optional</label>
     <input type="number" id="waterInput" placeholder="e.g. 15" value="0">
-
-    <label>Current Temp (°C)</label>
-    <input type="number" id="tempInput" placeholder="e.g. 25" step="0.1">
-
-    <label>Observed Density (kg/m³)</label>
-    <input type="number" id="densityInput" placeholder="e.g. 830" step="0.1">
 
     <button onclick="calculate()">Calculate</button>
 
@@ -62,7 +62,6 @@
 
 <script>
     // PARTIAL ARRAYS: Continue adding the numbers from the images here.
-    // Index 0 = 0mm, Index 1 = 5mm, Index 2 = 10mm, etc.
     const tankData = {
         "16kl": [0, 4, 10, 19, 29, 40, 53, 66, 81, 97, 113], 
         "22kl": [0.0, 4.2, 11.8, 21.6, 33.3, 46.4, 61.0, 76.8, 93.8, 111.8, 130.9] 
@@ -71,8 +70,22 @@
     // Thermal expansion coefficients based on product type
     const expansionCoeffs = {
         "diesel": 0.00083,
-        "petrol": 0.00120
+        "petrol20": 0.00120 
     };
+
+    // Smart Auto-Select Logic: Listens to the density input in real-time
+    document.getElementById('densityInput').addEventListener('input', function() {
+        const densityVal = parseFloat(this.value);
+        const productDropdown = document.getElementById('productSelect');
+        
+        if (!isNaN(densityVal)) {
+            if (densityVal < 800) {
+                productDropdown.value = 'petrol20';
+            } else {
+                productDropdown.value = 'diesel';
+            }
+        }
+    });
 
     // Reusable core logic function for array interpolation
     function calculateVolumeFromDip(dip, chart) {
