@@ -1,0 +1,15 @@
+{
+  "name": "Tank Volume Calc",
+  "short_name": "TankCalc",
+  "start_url": "./calculator.html",
+  "display": "standalone",
+  "background_color": "#f4f4f9",
+  "theme_color": "#007bff",
+  "icons": [
+    {
+      "src": "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Icon-droplet.svg/1024px-Icon-droplet.svg.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
