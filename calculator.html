@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tank Volume Calculator</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 20px; background-color: #f4f4f9; color: #333; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        h2 { text-align: center; margin-bottom: 20px; font-size: 22px; }
+        label { font-weight: bold; display: block; margin-top: 15px; margin-bottom: 5px; font-size: 14px; color: #555;}
+        select, input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+        button { width: 100%; padding: 15px; margin-top: 25px; background-color: #007bff; color: white; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; }
+        button:active { background-color: #0056b3; }
+        .result-box { margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 8px; text-align: center; }
+        .result-value { font-size: 24px; font-weight: bold; color: #28a745; margin-top: 5px; }
+        .sub-result { font-size: 14px; color: #666; margin-top: 10px; }
+        .error { color: #dc3545; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Tank Calculator</h2>
+    
+    <label>Select Tank</label>
+    <select id="tankSelect">
+        <option value="16kl">16 KL Tank</option>
+        <option value="22kl">22 KL Tank</option>
+    </select>
+
+    <label>Select Product</label>
+    <select id="productSelect">
+        <option value="diesel">Diesel (HSD)</option>
+        <option value="petrol">Petrol (MS)</option>
+    </select>
+
+    <label>Total Dip Reading (mm)</label>
+    <input type="number" id="dipInput" placeholder="e.g. 450">
+
+    <label>Water Dip Reading (mm) - Optional</label>
+    <input type="number" id="waterInput" placeholder="e.g. 15" value="0">
+
+    <label>Current Temp (°C)</label>
+    <input type="number" id="tempInput" placeholder="e.g. 25" step="0.1">
+
+    <label>Observed Density (kg/m³)</label>
+    <input type="number" id="densityInput" placeholder="e.g. 830" step="0.1">
+
+    <button onclick="calculate()">Calculate</button>
+
+    <div class="result-box" id="resultBox" style="display: none;">
+        <div>Net Product Volume:</div>
+        <div class="result-value" id="volResult">-- Ltrs</div>
+        <div class="sub-result" id="waterResultText">Water Volume: 0 Ltrs</div>
+        
+        <div style="margin-top: 15px;">Density @ 15°C:</div>
+        <div class="result-value" id="densityResult" style="color: #007bff;">--</div>
+    </div>
+</div>
+
+<script>
+    // PARTIAL ARRAYS: Continue adding the numbers from the images here.
+    // Index 0 = 0mm, Index 1 = 5mm, Index 2 = 10mm, etc.
+    const tankData = {
+        "16kl": [0, 4, 10, 19, 29, 40, 53, 66, 81, 97, 113], 
+        "22kl": [0.0, 4.2, 11.8, 21.6, 33.3, 46.4, 61.0, 76.8, 93.8, 111.8, 130.9] 
+    };
+
+    // Thermal expansion coefficients based on product type
+    const expansionCoeffs = {
+        "diesel": 0.00083,
+        "petrol": 0.00120
+    };
+
+    // Reusable core logic function for array interpolation
+    function calculateVolumeFromDip(dip, chart) {
+        if (isNaN(dip) || dip < 0) return 0;
+        
+        const index = Math.floor(dip / 5);
+        const remainder = dip % 5;
+
+        if (index < chart.length - 1) {
+            const vLower = chart[index];
+            const vUpper = chart[index + 1];
+            return vLower + ((vUpper - vLower) / 5) * remainder;
+        } else if (index === chart.length - 1 && remainder === 0) {
+            return chart[index];
+        }
+        return -1; // Error code if dip exceeds chart length
+    }
+
+    function calculate() {
+        // Gather Inputs
+        const tank = document.getElementById("tankSelect").value;
+        const product = document.getElementById("productSelect").value;
+        const totalDip = parseFloat(document.getElementById("dipInput").value);
+        let waterDip = parseFloat(document.getElementById("waterInput").value);
+        const temp = parseFloat(document.getElementById("tempInput").value);
+        const obsDensity = parseFloat(document.getElementById("densityInput").value);
+        
+        // Default water dip to 0 if left entirely blank
+        if (isNaN(waterDip)) waterDip = 0;
+
+        const chart = tankData[tank];
+        const resultBox = document.getElementById("resultBox");
+        const volResultEl = document.getElementById("volResult");
+        const waterResultEl = document.getElementById("waterResultText");
+        
+        // Sanity Check: Water cannot be higher than total liquid
+        if (waterDip > totalDip) {
+            volResultEl.innerHTML = '<span class="error">Error: Water Dip > Total Dip</span>';
+            waterResultEl.innerText = "";
+            document.getElementById("densityResult").innerText = "--";
+            resultBox.style.display = "block";
+            return;
+        }
+
+        // 1. VOLUME CALCULATION
+        const totalVolume = calculateVolumeFromDip(totalDip, chart);
+        const waterVolume = calculateVolumeFromDip(waterDip, chart);
+
+        if (totalVolume === -1 || waterVolume === -1) {
+            volResultEl.innerHTML = '<span class="error">Dip exceeds chart limit</span>';
+            waterResultEl.innerText = "";
+        } else {
+            const netProductVolume = totalVolume - waterVolume;
+            volResultEl.innerText = netProductVolume.toFixed(2) + " Ltrs";
+            waterResultEl.innerText = "Includes Total Vol: " + totalVolume.toFixed(2) + "L | Water: " + waterVolume.toFixed(2) + "L";
+            volResultEl.classList.remove("error");
+        }
+
+        // 2. DENSITY CORRECTION
+        let finalDensity = "--";
+        if (!isNaN(temp) && !isNaN(obsDensity)) {
+            const alpha = expansionCoeffs[product];
+            // Formula: D_15 = D_t * [1 + alpha * (T - 15)]
+            const correctedDensity = obsDensity * (1 + alpha * (temp - 15));
+            finalDensity = correctedDensity.toFixed(2) + " kg/m³";
+        }
+
+        // Display Results
+        document.getElementById("densityResult").innerText = finalDensity;
+        resultBox.style.display = "block";
+    }
+</script>
+
+</body>
+</html>
